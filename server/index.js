@@ -2,8 +2,10 @@ const express = require("express");
 const path = require("path");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const connection=require("./configue/db.js")
-const authRoutes=require('./routes/auth.route.js');
+const connection = require("./configue/db.js")
+const authRoutes = require('./routes/auth.route.js');
+const userRoutes = require('./routes/user.route.js')
+const taskRoutes = require('./routes/task.route.js')
 dotenv.config();
 
 const app = express();
@@ -20,9 +22,9 @@ app.use(express.json());
 
 
 
-app.use('/api/auth',authRoutes)
-// app.use('/api/user',userRoutes)
-// app.use('/api/task',taskRoutes)
+app.use('/api/auth', authRoutes)
+app.use('/api/user', userRoutes)
+app.use('/api/task', taskRoutes)
 // app.use('/api/reports',reportsRoutes)
 
 

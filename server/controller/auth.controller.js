@@ -127,6 +127,7 @@ const updateUserProfile = async (req, res) => {
             email: user.email,
             role: user.role,
             profileImageUrl: user.profileImageUrl,
+            token:generateToken(user._id)
         });
     } catch (error) {
         console.error("Error while updating user profile:", error.message);

@@ -1,167 +1,280 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const User = require("../model/user.model.js");
+const Task = require('../model/task.model.js');
+const User = require('../model/user.model.js');
 
-// Generate JWT Token
-const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "2d" });
-};
 
-// Register User
-const registerUser = async (req, res) => {
+const getDashboardData = async (req, res) => {
     try {
-        const { name, email, password, profileImageUrl, adminInviteToken } = req.body;
 
-        // Check if user exists
-        const userExist = await User.findOne({ email });
-        if (userExist) {
-            return res.status(400).json({ message: "User already exists" });
-        }
 
-        // Role assignment with admin invite token validation
-        let role = "member";
-        if (adminInviteToken && adminInviteToken === process.env.ADMIN_INVITE_TOKEN) {
-            role = "admin";
-        }
-
-        // Hash the password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Create the new user
-        const user = await User.create({
-            name,
-            email,
-            password: hashedPassword,
-            profileImageUrl,
-            role,
-        });
-
-        // Return user details and token
-        res.status(201).json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            profileImageUrl: user.profileImageUrl,
-            token: generateToken(user._id),
-        });
     } catch (error) {
-        console.error("Error while registering user:", error.message);
         res.status(500).json({ message: "Server error", error: error.message });
+
+
     }
-};
+}
 
-// Login User 
-const loginUser = async (req, res) => {
+
+
+const getUserDashboardData = async (req, res) => {
     try {
-        const { email, password } = req.body;
+
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
 
 
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" })
-        };
+    }
+}
 
+// Get all tasks(Admin:all, user:only assigned)
 
-        // compare password
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ message: "Invalid email or password" })
+const getTasks = async (req, res) => {
+    try {
+        const { status } = req.query;
+        let filter = {};
+        if (status) {
+            filter.status = status;
         }
 
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            profileImageUrl: user.profileImageUrl,
-            token: generateToken(user._id)
+        let tasks;
+        if (req.user.role === "admin") {
+            tasks = await Task.find(filter).populate(
+                "assignedTo", "name email profileImageUrl"
+            )
+        } else {
+            tasks = await Task.find({ ...filter, assignedTo: req.user._id }).populate(
+                "assignedTo",
+                "name email profileImageUrl"
+            )
+        }
+
+        // Add completed todoCheckList count to each task
+
+        tasks = await Promise.all(
+            tasks.map(async (task) => {
+                const completedCount = task.todoChecklist.filter(
+                    (item) => item.completed
+                ).length;
+                return { ...task._doc, completedTodoCount: completedCount }
+            })
+        )
+        // status summary count
+        const allTasks = await Task.countDocuments(
+            req.user.role === "admin" ? {} : { assignedTo: req.user.role }
+        )
+
+        const pendingTasks = await Task.countDocuments({
+            ...filter, status: "Pending",
+            ...(req.user.role !== "admin" && { assignedTo: req.user._id })
         })
 
 
-    } catch (error) {
-        console.error("Error while logging in:", error.message);
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-};
+        const inProgressTasks = await Task.countDocuments({
+            ...filter, status: "In Progress",
+            ...(req.user.role !== "admin" && { assignedTo: req.user._id })
+        })
 
-// Get User Profile 
-const getUserProfile = async (req, res) => {
+        const compeletedTasks = await Task.countDocuments({
+            ...filter, status: "Completed",
+            ...(req.user.role !== "admin" && { assignedTo: req.user._id })
+        })
+res.json({
+    tasks,statusSummary:{
+        all:allTasks,
+        pendingTasks,
+        inProgressTasks,
+        compeletedTasks,
+    }
+})
+
+
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+
+
+    }
+}
+
+
+const getTaskById = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
-        if (!user) {
-            return res.status(404).json({ message: "User not found" })
+        const task = await Task.findById(req.params.id).populate(
+            "assignedTo", "name email profileImageUrl"
+        );
+        
+        if (!task) {
+            return res.status(404).json({ message: "Task not found" });
         }
-        res.json(user);
-
+        
+        res.json(task);
     } catch (error) {
-        console.error("Error while retrieving user profile:", error.message);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
 
-// Update User Profile 
-const updateUserProfile = async (req, res) => {
+
+const createTask = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+
+        const {
+            title, description, priority,
+            dueDate, assignedTo, attachments,
+            todoChecklist
+        } = req.body;
+
+        if (!Array.isArray(assignedTo)) {
+            return res.status(400).json({ message: "assigned-to must be an array of user ID's" })
         }
 
-        const { name, email, profileImageUrl, password } = req.body;
+        const task = await Task.create({
+            title, description, priority,
+            dueDate, assignedTo,
+            createdBy: req.user._id,
+            attachments,
+            todoChecklist: todoChecklist,
+        })
+        res.status(201).json({ message: "Task created successfully", task })
 
-        if (name) user.name = name;
-        if (email) user.email = email;
-        if (profileImageUrl) user.profileImageUrl = profileImageUrl;
-        if (password) {
-            const salt = await bcrypt.genSalt(10);
-            user.password = await bcrypt.hash(password, salt);
-        }
 
-        await user.save();
-
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            profileImageUrl: user.profileImageUrl,
-        });
     } catch (error) {
-        console.error("Error while updating user profile:", error.message);
         res.status(500).json({ message: "Server error", error: error.message });
+
+
     }
-};
+}
+
+const updateTask = async (req, res) => {
+    try {
+
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+
+
+    }
+}
+
+
+
+const updateTaskCheckList = async (req, res) => {
+    try {
+
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+
+
+    }
+}
+
+
+const updateTaskStatus = async (req, res) => {
+    try {
+
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+
+
+    }
+}
+
+const deleteTask = async (req, res) => {
+    try {
+
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+
+
+    }
+}
+
+
+
 
 
 
 module.exports = {
-    getUserProfile,
-    registerUser,
-    loginUser,
-    updateUserProfile,
-};
+    getDashboardData, getUserDashboardData,
+    getTasks, getTaskById, createTask, updateTask,
+    updateTaskCheckList, updateTaskStatus,
+    deleteTask
+}const express = require("express");
+const router=express.Router();
+const {protect,adminOnly}=require('../middleware/authMiddleware.js')
+const {getDashboardData,getUserDashboardData,
+    getTasks,getTaskById,createTask,updateTask,
+    updateTaskCheckList,updateTaskStatus,
+deleteTask
+}=require('../controller/task.controller.js')
 
 
+
+router.get('/dashboard-data',protect,getDashboardData)
+router.get('/user-dashboard-data',protect,getUserDashboardData)
+router.get('/',protect,getTasks)
+router.get('/:id',protect,getTaskById)
+router.post('/',protect,adminOnly,createTask)
+router.put('/:id',protect,updateTask)
+router.put('/:id/todo',protect,updateTaskCheckList)
+router.put('/:id/status',protect,updateTaskStatus)
+router.delete('/:id',protect,adminOnly,deleteTask)
+
+
+
+
+
+
+module.exports=router;
+const mongoose = require('mongoose');
+
+const todoSchema = new mongoose.Schema({
+    text: { type: String, required: true }, 
+    completed: { type: Boolean, default: false }, 
+});
+
+const taskSchema = new mongoose.Schema({
+    title: { type: String, required: true }, 
+    description: { type: String },
+    priority: { 
+        type: String, 
+        enum: ['Low', 'High', 'Medium'], 
+        default: 'Medium' 
+    },
+    status: { 
+        type: String, 
+        enum: ['Pending', 'In Progress', 'Completed'], 
+        default: 'Pending' 
+    },
+    dueDate: { type: Date, required: true }, 
+    assignedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], 
+    createdBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    attachments: [{ type: String }], 
+    todoChecklist: [todoSchema], 
+    progress: { type: Number, default: 0 }, 
+}, 
+{
+    timestamps: true 
+});
+
+
+const Task = mongoose.model("Task", taskSchema);
+
+module.exports = Task;
 const jwt = require('jsonwebtoken');
-const User = require('../model/task.model.js')
+const User = require('../model/user.model.js')
 
 
 const protect = async (req, res, next) => {
     try {
         let token = req.headers.authorization;
-        console.log('Token:', token);
+        // console.log('Token:', token);
 
         if (token && token.startsWith("Bearer")) {
             token = token.split(" ")[1];
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-            console.log('Decoded:', decoded);
+            // console.log('Decoded:', decoded);
 
             req.user = await User.findById(decoded.id).select("-password");
-            console.log('User from DB:', req.user);
+            // console.log('User from DB:', req.user);
             next();
         } else {
             res.status(401).json({ message: "Not authorized, no token" })
@@ -185,32 +298,3 @@ const adminOnly = (req, res, next) => {
 
 
 module.exports = { adminOnly, protect }
-const express = require("express");
-const router = express.Router();
-const { registerUser, loginUser, getUserProfile, updateUserProfile } = require('../controller/auth.controller');
-const { protect } = require('../middleware/authMiddleware.js')
-
-router.post('/register', registerUser);
-router.post('/login', loginUser);
-router.get('/profile', protect, getUserProfile);
-router.put('/profile', protect, updateUserProfile);
-
-
-module.exports = router;
-const mongoose = require('mongoose');
-
-const userSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    profileImageUrl: { type: String, default: null }, 
-    role: { type: String, enum: ["admin", "member"], default: "member" }, 
-}, 
-{
-    timestamps: true 
-});
-
-
-const User = mongoose.model("User", userSchema);
-
-module.exports = User;
