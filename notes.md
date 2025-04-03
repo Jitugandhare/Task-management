@@ -92,9 +92,10 @@ const getUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return res.status(404).json({ message: "User not found" })
         }
         res.json(user);
+
     } catch (error) {
         console.error("Error while retrieving user profile:", error.message);
         res.status(500).json({ message: "Server error", error: error.message });
@@ -142,3 +143,74 @@ module.exports = {
     loginUser,
     updateUserProfile,
 };
+
+
+const jwt = require('jsonwebtoken');
+const User = require('../model/task.model.js')
+
+
+const protect = async (req, res, next) => {
+    try {
+        let token = req.headers.authorization;
+        console.log('Token:', token);
+
+        if (token && token.startsWith("Bearer")) {
+            token = token.split(" ")[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+            console.log('Decoded:', decoded);
+
+            req.user = await User.findById(decoded.id).select("-password");
+            console.log('User from DB:', req.user);
+            next();
+        } else {
+            res.status(401).json({ message: "Not authorized, no token" })
+        }
+    } catch (error) {
+        res.status(401).json({ message: "token failed", message: error.message })
+
+    }
+}
+
+// middleware only for admin access
+
+const adminOnly = (req, res, next) => {
+    if (req.user && req.user.role === "admin") {
+        next();
+    } else {
+        res.status(403).json({ message: "Access denied, admin only" })
+
+    }
+}
+
+
+module.exports = { adminOnly, protect }
+const express = require("express");
+const router = express.Router();
+const { registerUser, loginUser, getUserProfile, updateUserProfile } = require('../controller/auth.controller');
+const { protect } = require('../middleware/authMiddleware.js')
+
+router.post('/register', registerUser);
+router.post('/login', loginUser);
+router.get('/profile', protect, getUserProfile);
+router.put('/profile', protect, updateUserProfile);
+
+
+module.exports = router;
+const mongoose = require('mongoose');
+
+const userSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    profileImageUrl: { type: String, default: null }, 
+    role: { type: String, enum: ["admin", "member"], default: "member" }, 
+}, 
+{
+    timestamps: true 
+});
+
+
+const User = mongoose.model("User", userSchema);
+
+module.exports = User;
