@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import AuthLayout from '../../components/layouts/AuthLayout';
 import { Link, useNavigate } from 'react-router-dom';
 import Input from '../../customcomponent/Input';
 import ProfilePhotoSelector from '../../customcomponent/ProfilePhotoSelector';
+import { UserContext } from '../../context/userContext';
+import axiosInstance from "../../utils/axiosInstance";
+import uploadImage from '../../utils/uploadImage';
+import {API_PATHS} from '../../utils/apiPaths'
+
+
+
+
 
 const SignUp = () => {
 
@@ -11,11 +19,14 @@ const SignUp = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [adminInviteToken, setAdminInviteToken] = useState('');
-  const [error, setError] = useState(''); // Added error state
-  const navigate = useNavigate(); // Added navigate hook for possible redirection
+  const [error, setError] = useState('');
+  const { updatedUser } = useContext(UserContext)
+  const navigate = useNavigate();
 
-  const handleSignUp = (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
+
+    let profileImageUrl = '';
 
     if (!fullName) {
       setError("Please enter full name.");
@@ -43,6 +54,50 @@ const SignUp = () => {
     // Handle the API call for signing up here
     // You might want to add a successful sign-up action, e.g., redirect to the login page
     // navigate('/login'); // example of redirecting after successful sign up
+
+    try {
+
+      if(profilePic){
+        const imgUploadRes=await uploadImage(profilePic);
+        profileImageUrl=imgUploadRes.imageUrl || '';
+      }
+
+
+
+      // Making an API call to the Registration failed endpoint with email and password
+      const response = await axiosInstance.post(API_PATHS.AUTH.REGISTER, {
+        name: fullName,
+        email,
+        password,
+        profileImageUrl,
+        adminInviteToken
+      });
+      const { token, role } = response.data;
+
+      if (token) {
+        localStorage.setItem("token", token)
+        updatedUser(response.data)
+      }
+      if (role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/user/dashboard')
+      }
+
+
+
+    } catch (error) {
+      // Handle errors from the API request
+      if (error.response && error.response.data.message) {
+        setError(error.response.data.message)
+      } else {
+        console.error("Registration failed failed:", error);
+        setError("Something went wrong.Please try again.");
+      }
+    }
+
+
+
   };
 
   return (

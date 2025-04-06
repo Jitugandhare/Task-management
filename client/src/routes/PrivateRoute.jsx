@@ -1,8 +1,18 @@
-import React from 'react'
-import { Outlet } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom';
 
-const PrivateRoute = ({allowedRoutes}) => {
-  return <Outlet/>
-}
+const PrivateRoute = ({ allowedRoutes }) => {
+  // const token = localStorage.getItem("token");
+  // const userRole = localStorage.getItem("role"); 
 
-export default PrivateRoute
+  // if (!token) {
+  //   return <Navigate to="/login" replace />;
+  // }
+
+  // if (allowedRoutes && !allowedRoutes.includes(userRole)) {
+  //   return <Navigate to="/login" replace />;
+  // }
+
+  return <Outlet />;
+};
+
+export default PrivateRoute;

@@ -6,7 +6,7 @@ const connection = require("./configue/db.js")
 const authRoutes = require('./routes/auth.route.js');
 const userRoutes = require('./routes/user.route.js')
 const taskRoutes = require('./routes/task.route.js');
-const reportsRoutes=require('./routes/reports.route.js');
+const reportsRoutes = require('./routes/reports.route.js');
 
 dotenv.config();
 
@@ -27,9 +27,9 @@ app.use(express.json());
 app.use('/api/auth', authRoutes)
 app.use('/api/user', userRoutes)
 app.use('/api/task', taskRoutes)
-app.use('/api/reports',reportsRoutes)
+app.use('/api/reports', reportsRoutes)
 
-
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 
 
