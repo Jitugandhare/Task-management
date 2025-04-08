@@ -122,7 +122,7 @@ const SignUp = () => {
               label="Email"
               value={email}
               onChange={({ target }) => setEmail(target.value)}
-              placeholder="Min 8 Characters"
+              placeholder="john@example.com"
               type="text"
             />
             <Input
