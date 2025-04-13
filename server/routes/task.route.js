@@ -22,6 +22,9 @@ router.delete('/:id',protect,adminOnly,deleteTask)
 
 
 
+// Route for tasks
+// router.get('/tasks/:id', protect, getTaskById);
+
 
 
 module.exports=router;

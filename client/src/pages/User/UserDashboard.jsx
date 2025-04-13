@@ -51,6 +51,7 @@ const UserDashboard = () => {
   const getDashboardData = async () => {
     try {
       const response = await axiosInstance.get(API_PATHS.TASKS.GET_USER_DASHBOARD_DATA);
+      console.log('user dashboard data:-'  , response)
 
       if (response.data) {
         console.log("Dashboard Data:", response.data);

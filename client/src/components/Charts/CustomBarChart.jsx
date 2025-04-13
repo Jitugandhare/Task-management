@@ -4,17 +4,11 @@ import {
 } from 'recharts';
 
 const CustomBarChart = ({ data }) => {
-  const getBarColor = (entry) => {
-    switch (entry?.priority) {
-      case 'Low':
-        return '#00BC7D';
-      case 'Medium':
-        return '#FE9900';
-      case 'High':
-        return '#FF1F57';
-      default:
-        return '#00BC7D';
-    }
+  // Use a color map for priority levels to make it more scalable
+  const priorityColorMap = {
+    Low: '#00BC7D',
+    Medium: '#FE9900',
+    High: '#FF1F57',
   };
 
   const CustomTooltip = ({ active, payload }) => {
@@ -54,7 +48,7 @@ const CustomBarChart = ({ data }) => {
             activeStyle={{ fill: "green" }}
           >
             {data.map((entry, index) => (
-              <Cell key={index} fill={getBarColor(entry)} />
+              <Cell key={index} fill={priorityColorMap[entry.priority] || '#00BC7D'} />
             ))}
           </Bar>
         </BarChart>

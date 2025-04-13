@@ -1,10 +1,10 @@
-import React from 'react'
+import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import CustomTooltip from './CustomTooltip';
+import CustomTooltip from './CustomTooltip';  // Import CustomTooltip
 import CustomLegend from './CustomLegend';
 
 const CustomPieChart = ({ data, colors }) => {
-    if (!data || data.length === 0) return <div>No data available</div>; // Handle empty data
+    if (!data || data.length === 0) return <div>No data available</div>;
 
     return (
         <ResponsiveContainer width="100%" height={300}>
