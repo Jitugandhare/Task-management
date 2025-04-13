@@ -1,149 +1,302 @@
-import React, { useContext, useEffect, useState } from 'react'
-import useUserAuth from '../../hooks/useUserAuth'
-import { UserContext } from '../../context/userContext'
-import DashboardLayout from '../../components/layouts/DashboardLayout'
-import { useNavigate } from 'react-router-dom'
-import axiosInstance from '../../utils/axiosInstance'
-import { API_PATHS } from '../../utils/apiPaths'
-import moment from 'moment'
-import InfoCard from '../../components/Cards/InfoCard'
-import { addThousandsSeparator } from '../../utils/helper'
-import { LuArrowRight } from 'react-icons/lu'
-import TaskListTable from '../../components/TaskListTable'
-import CustomPieChart from '../../components/Charts/CustomPieChart'
-import CustomBarChart from '../../components/Charts/CustomBarChart'
+import React, { useState, useEffect } from 'react';
+import DashboardLayout from "../../components/layouts/DashboardLayout"
+import { API_PATHS } from '../../utils/apiPaths';
+import { PRIORITY_DATA } from '../../utils/data';
+import axiosInstance from '../../utils/axiosInstance';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { LuTrash2 } from 'react-icons/lu';
+import moment from 'moment';
+import toast from 'react-hot-toast'
+import SelectDropdown from '../../customcomponent/SelectDropdown'
+import SelectUsers from '../../customcomponent/SelectUsers';
+import TodoListInput from '../../customcomponent/TodoListInput';
+import AddAttachmentsInput from '../../customcomponent/AddAttachmentsInput';
 
-const COLORS = ["#8D51FF", "#00B8DB", "#7BCE00"];
-
-const Dashboard = () => {
-  useUserAuth();
-
-  const { user } = useContext(UserContext);
+const CreateTask = () => {
+  const location = useLocation();
+  const { taskId } = location.state || {};
   const navigate = useNavigate();
-  const [dashboardData, setDashboardData] = useState(null);
-  const [pieChartData, setPieChartData] = useState([]);
-  const [barChartData, setBarChartData] = useState([]);
+  const [taskData, setTaskData] = useState({
+    title: "",
+    description: "",
+    priority: "Low",
+    dueDate: null,
+    assignedTo: [],
+    todoChecklist: [],
+    attachments: [],
+  });
 
-  // Prepare Chart Data
-  const prepareChartData = (data) => {
-    const taskDistribution = data?.taskDistribution || {};
-    const taskPriorityLevels = data?.taskPriorityLevels || {};
+  const [currentTask, setCurrentTask] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [openDeleteAlert, setOpenDeleteAlert] = useState(false);
 
-    // Task Distribution Data for Pie Chart
-    const taskDistributionData = [
-      { status: "Pending", count: taskDistribution?.Pending || 0 },
-      { status: "In Progress", count: taskDistribution?.InProgress || 0 },
-      { status: "Completed", count: taskDistribution?.Completed || 0 }
-    ];
 
-    setPieChartData(taskDistributionData);
 
-    // Task Priority Level Data for Bar Chart
-    const priorityLevelData = [
-      { priority: "Low", count: taskPriorityLevels?.Low || 0 },
-      { priority: "Medium", count: taskPriorityLevels?.Medium || 0 },
-      { priority: "High", count: taskPriorityLevels?.High || 0 }
-    ];
-
-    setBarChartData(priorityLevelData);
+  const handleValueChange = (key, value) => {
+    setTaskData((prevData) => ({ ...prevData, [key]: value }));
   };
 
-  const getDashboardData = async () => {
-    try {
-      const response = await axiosInstance.get(API_PATHS.TASKS.GET_DASHBOARD_DATA);
+  // reset form
+  const clearData = () => {
+    setTaskData({
+      title: "",
+      description: "",
+      priority: "Low",
+      dueDate: null,
+      assignedTo: [],
+      todoChecklist: [],
+      attachments: [],
+    });
+  };
 
-      if (response.data) {
-        console.log("Dashboard Data:", response.data);
-        setDashboardData(response.data);
-        prepareChartData(response.data?.charts || {});
-      }
+  // Create task 
+  const createTask = async () => {
+    setLoading(true);
+
+    try {
+      const todolist = taskData.todoChecklist?.map((item) => ({
+        text: item,
+        completed: false,
+      }));
+
+      const response = await axiosInstance.post(API_PATHS.TASKS.CREATE_TASK, {
+        ...taskData,
+        dueDate: new Date(taskData.dueDate).toISOString(),
+        todoChecklist: todolist,
+      });
+      toast.success("Task Created Successfully");
+      clearData();
+      navigate('/tasks'); // Navigate to task list after creation
+
     } catch (error) {
-      console.error('Error fetching dashboard data: ', error);
+      setLoading(false);
+      console.error("Error creating task:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    getDashboardData();
-  }, []);
+  const updateTask = async () => {
+    setLoading(true);
 
-  const onSeeMore = () => {
-    navigate('/admin/tasks');
+    try {
+      const todolist = taskData.todoChecklist?.map((item) => {
+        const prevTodoChecklist = currentTask?.todoChecklist || [];
+        const matchedTask = prevTodoChecklist.find((task) => task.text == item);
+
+        return {
+          text: item,
+          completed: matchedTask ? matchedTask.completed : false,
+        };
+      });
+
+      const response = await axiosInstance.put(API_PATHS.TASKS.UPDATE_TASK(taskId), {
+        ...taskData,
+        dueDate: new Date(taskData.dueDate).toISOString(),
+        todoChecklist: todolist,
+      });
+
+      toast.success("Task Updated Successfully")
+
+    } catch (error) {
+      setLoading(false);
+      console.error("Error updating task:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const taskDistribution = dashboardData?.charts?.taskDistribution || {};
+  const handleSubmit = async () => {
+    setError(null);
+    // Input validation
+    if (!taskData.title.trim()) {
+      setError("Title is required.");
+      return;
+    }
+    if (!taskData.description.trim()) {
+      setError("Description is required.");
+      return;
+    }
+    if (!taskData.dueDate?.trim()) {
+      setError("Due Date is required.");
+      return;
+    }
+    if (taskData.assignedTo?.length === 0) {
+      setError("Task is not assigned to any member.");
+      return;
+    }
+    if (taskData.todoChecklist?.length === 0) {
+      setError("Add at least one todo task.");
+      return;
+    }
+    if (taskId) {
+      updateTask();
+    } else {
+      createTask();
+    }
+  };
+
+  const getTaskDetailsById = async () => {
+    setLoading(true);
+
+    try {
+      const response = await axiosInstance.get(API_PATHS.TASKS.GET_TASK_BY_ID(taskId));
+      if (response.data) {
+        setCurrentTask(response.data);
+
+        setTaskData((prevState) => ({
+          title: taskInfo.title,
+          description: taskInfo.description,
+          priority: taskInfo.priority,
+          dueDate: taskInfo.dueDate ? moment(taskInfo.dueDate).format('YYYY-MM-DD') : null,
+          assignedTo: taskInfo?.assignedTo?.map((item) => item?._id) || [],
+          todoChecklist: taskInfo?.todoChecklist?.map((item) => item.text) || [],
+          attachments: taskInfo?.attachments || [],
+        }));
+
+
+
+      }
+
+
+    } catch (error) {
+      console.error("Error fetching task:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteTask = async () => {
+    
+  };
+
 
   useEffect(() => {
-    console.log("Task Distribution Data:", taskDistribution);
-  }, [taskDistribution]);
+    if (taskId) {
+      getTaskDetailsById(taskId)
+    }
+
+    return () => { }
+  }, [taskId])
 
   return (
-    <DashboardLayout activeMenu="Dashboard">
-      <div className="card my-5">
-        <div>
-          <div className="col-span-3">
-            <h2 className="text-xl md:text-2xl">Good Morning! {user?.name}</h2>
-            <p className="text-xs md:text-[13px] text-gray-400 mt-1.5">
-              {moment().format("dddd Do MM YYYY")}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 md:gap-6 mt-5">
-          <InfoCard
-            label="Total Tasks"
-            value={addThousandsSeparator(taskDistribution?.All || 0)}
-            color="bg-blue-800"
-          />
-          <InfoCard
-            label="Pending Tasks"
-            value={addThousandsSeparator(taskDistribution?.Pending || 0)}
-            color="bg-violet-500"
-          />
-          <InfoCard
-            label="In Progress Tasks"
-            value={addThousandsSeparator(taskDistribution?.InProgress || 0)}
-            color="bg-cyan-800"
-          />
-          <InfoCard
-            label="Completed Tasks"
-            value={addThousandsSeparator(taskDistribution?.Completed || 0)}
-            color="bg-lime-800"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
-
-        {/* custom pie chart */}
-        <div>
-          <div className='card'>
+    <DashboardLayout activeMenu="Create Task">
+      <div className='mt-5 '>
+        <div className='grid grid-cols-1 md:grid-cols-4 mt-4'>
+          <div className='form-card col-span-3'>
             <div className='flex items-center justify-between'>
-              <h5 className='font-medium'>Task Distribution</h5>
+              <h2 className='text-xl md:text-xl font-medium'>
+                {taskId ? "Update Task" : "Create Task"}
+              </h2>
+              {taskId && (
+                <button className='flex items-center gap-1.5 text-[13px] font-medium text-rose-500 bg-rose-50 rounded px-2 py-1 border-rose-100 hover:border-rose-300 cursor-pointer'
+                  onClick={() => setOpenDeleteAlert(true)}
+                >
+                  <LuTrash2 className='text-base' />
+                  Delete
+                </button>
+              )}
             </div>
-            <CustomPieChart data={pieChartData} colors={COLORS} />
-          </div>
-        </div>
-
-        {/* customBarChart */}
-        <div>
-          <div className='card'>
-            <div className='flex items-center justify-between'>
-              <h5 className='font-medium'>Task Priority Level</h5>
+            <div className='mt-4'>
+              <label className='text-xs font-medium text-slate-600'>
+                Task Title
+              </label>
+              <input
+                placeholder='Create App UI'
+                className='form-input '
+                value={taskData.title}
+                onChange={({ target }) =>
+                  handleValueChange("title", target.value)
+                }
+              />
             </div>
-            <CustomBarChart data={barChartData} />
-          </div>
-        </div>
 
-        <div className="md:col-span-2">
-          <div className="card">
-            <div className="flex items-center justify-between">
-              <h5 className="text-lg">Recent Tasks</h5>
-              <button className="card-btn" onClick={onSeeMore}>
-                See All <LuArrowRight className="text-base" />
+            <div className='mt-3'>
+              <label className="text-sm font-medium text-slate-600">
+                Description
+              </label>
+
+              <textarea
+                placeholder='Describe task'
+                className='form-input'
+                rows={4}
+                value={taskData.description}
+                onChange={({ target }) =>
+                  handleValueChange('description', target.value)
+                }
+              />
+            </div>
+
+            <div className='grid grid-rows-12 gap-4 mt-2'>
+              <div className='col-span-6 md:col-span-4'>
+                <label className="text-xs font-medium text-slate-600">
+                  Priority
+                </label>
+                <SelectDropdown
+                  options={PRIORITY_DATA}
+                  value={taskData.priority}
+                  onChange={(value) => handleValueChange('priority', value)}
+                  placeholder="Select Priority"
+                />
+              </div>
+
+              <div className='col-span-6 md:col-span-4'>
+                <label className='text-xs font-medium text-slate-600'>Due Date</label>
+                <input
+                  placeholder='Create App UI'
+                  className='form-input'
+                  value={taskData.dueDate}
+                  onChange={({ target }) => handleValueChange("dueDate", target.value)}
+                  type='date'
+                />
+              </div>
+
+              <div className='col-span-6 md:col-span-3'>
+                <label className='text-xs font-medium text-slate-600'>
+                  Assign To
+                </label>
+                <SelectUsers
+                  selectedUsers={taskData.assignedTo}
+                  setSelectedUsers={(value) => handleValueChange('assignedTo', value)}
+                />
+              </div>
+            </div>
+
+            <div className='mt-3'>
+              <label className='text-xs font-medium text-slate-600'>
+                TODO Checklist
+              </label>
+              <TodoListInput
+                todoList={taskData?.todoChecklist}
+                setTodoList={(value) =>
+                  handleValueChange("todoChecklist", value)
+                }
+              />
+            </div>
+
+            <div className='mt-3'>
+              <label className="text-xs font-medium text-slate-600">Add Attachments</label>
+              <AddAttachmentsInput
+                attachments={taskData?.attachments}
+                setAttachments={(value) =>
+                  handleValueChange("attachments", value)
+                }
+              />
+            </div>
+
+            {error && (
+              <p className='text-xs font-medium text-red-500 mt-5'>{error} </p>
+            )}
+
+            <div className='flex justify-end mt-7'>
+              <button
+                className='add-btn'
+                onClick={handleSubmit}
+                disabled={loading}>
+                {taskId ? "UPDATE TASK" : "CREATE TASK"}
               </button>
             </div>
-
-            <TaskListTable tableData={dashboardData?.recentTasks || []} />
           </div>
         </div>
       </div>
@@ -151,257 +304,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
-import React from 'react'
-import {
-    BarChart, Bar, XAxis, YAxis
-    , CartesianGrid, Tooltip,
-    Legend, ResponsiveContainer
-} from 'recharts';
-
-
-const CustomBarChart = ({ data }) => {
-
-
-    const getBarColor = (entry) => {
-        switch (entry?.priority) {
-            case 'Low':
-                return '#00BC7D';
-            case 'Medium':
-                return '#FE9900';
-            case 'High':
-                return '#FF1F57';
-            default:
-                return '#00BC7D';
-        }
-    };
-
-    // Custom Tooltip Component
-    const CustomTooltip = ({ active, payload }) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-white shadow-md rounded-lg p-2 border border-gray-300 text-purple-800 mb-1">
-                    <p className="text-xs font-semibold text-purple-800 mb-1">{payload[0].payload.priority}</p>
-                    <p className="text-sm text-gray-600">
-                        Count: <span className="text-sm font-medium text-gray-900">{payload[0].payload.count}</span>
-                    </p>
-                </div>
-            );
-        }
-        return null;
-    };
-
-
-
-
-    return (
-
-
-        <div className='bg-white mt-6'>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data}>
-                    <CartesianGrid stroke='none' />
-                    <XAxis
-                        dataKey='priority'
-                        tick={{ fontSize: 12, fill: '#555' }}
-                        stroke='none'
-                    />
-                    <YAxis
-                        dataKey='priority'
-                        tick={{ fontSize: 12, fill: '#555' }}
-                        stroke='none'
-                    />
-                    <Tooltip content={CustomTooltip} cursor={{ fill: "transparent" }} />
-
-                    <Bar
-                        dataKey="count"
-                        nameKey="priority"
-                        fill="#FF8042"
-                        radius={[10, 10, 0, 0]}
-                        activeDot={{ r: 8, fill: "yellow" }}
-                        activeStyle={{ fill: "green" }}
-
-
-
-                    >
-                        {data.map((entry, index) => (
-                            <Cell
-                                key={index}
-                                fill={getBarColor(entry)}
-                            />
-                        ))}
-
-                    </Bar>
-                </BarChart>
-            </ResponsiveContainer>
-        </div>
-    )
-}
-
-export default CustomBarChart
-import React from 'react'
-
-const CustomTooltip = ({ active, payload }) => {
-    if (active && payload.length) {
-        return (
-            <div className='bg-white shadow-md rounded-lg p-2 border border-gray-300 '>
-                <p className='text-xs font-semibold text-purple-800 mb-1'>{payload[0].name}</p>
-                <p className='text-sm text-gray-600'>
-                    Count: <span className='text-sm font-medium text-gray-900'>
-                        {payload[0].value}
-                    </span>
-                </p>
-            </div>
-        )
-    }
-    return null;
-
-}
-
-export default CustomTooltip
-import React from 'react'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import CustomTooltip from './CustomTooltip';
-import CustomLegend from './CustomLegend';
-
-const CustomPieChart = ({ data, colors }) => {
-    if (!data || data.length === 0) return <div>No data available</div>; // Handle empty data
-
-    return (
-        <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-                <Pie
-                    data={data}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={130}
-                    innerRadius={100}
-                    labelLine={false}
-                >
-                    {data.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                    ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend content={<CustomLegend />} />
-            </PieChart>
-        </ResponsiveContainer>
-    );
-};
-
-export default CustomPieChart;
-import React from 'react'
-
-const CustomLegend = ({ payload }) => {
-    return (
-        <div className='flex flex-wrap justify-center gap-2 mt-4 space-x-6'>
-
-            {payload.map((entry, index) => (
-                <div key={`legend-${index}`} className='flex items-center space-x-2'>
-                    <div className='w-2.5 h-2.5 rounded-full'
-                        style={{ backgroundColor: entry.color }}
-                    >
-
-                    </div>
-                    <span className='text-xs text-gray-700 font-medium'>
-                        {entry.value}
-                    </span>
-
-                </div>
-
-            ))}
-        </div>
-    )
-}
-
-export default CustomLegend
-import React, { useContext, useEffect } from 'react'
-import { UserContext } from '../context/userContext'
-import { useNavigate } from 'react-router-dom';
-
-const useUserAuth = () => {
-    const { user, loading, clearUser } = useContext(UserContext);
-    const navigate = useNavigate();
-
-
-    useEffect(() => {
-        if (loading) return;
-        if (user) return;
-
-        if (!user) {
-            clearUser();
-            navigate('/login')
-        }
-    }, [user, loading, clearUser, navigate])
-}
-
-export default useUserAuth
-import React from 'react'
-import moment from 'moment';
-
-const TaskListTable = ({ tableData = [] }) => {
-    const getStatusBadgeColor = (status) => {
-        switch (status) {
-            case "Completed":
-                return 'bg-green-100 text-green-500 border border-green-200';
-            case "Pending":
-                return 'bg-purple-100 text-purple-500 border border-purple-200';
-            case "In Progress":
-                return 'bg-cyan-100 text-cyan-500 border border-cyan-200';
-            default:
-                return 'bg-gray-100 text-gray-500 border border-gray-200';
-        }
-    };
-
-    const getPriorityBadgeColor = (priority) => {
-        switch (priority) {
-            case "High":
-                return 'bg-red-100 text-red-500 border border-red-200';
-            case "Medium":
-                return 'bg-orange-100 text-orange-500 border border-orange-200';
-            case "Low":
-                return 'bg-green-100 text-green-500 border border-green-200';
-            default:
-                return 'bg-gray-100 text-gray-500 border border-gray-200';
-        }
-    };
-
-    return (
-        <div className='overflow-x-auto p-0 rounded-lg mt-3'>
-            <table className='min-w-full'>
-                <thead>
-                    <tr className='text-left'>
-                        <th className='py-3 px-4 text-gray-800 text-[15px]'>Name</th>
-                        <th className='py-3 px-4 text-gray-800 text-[15px]'>Status</th>
-                        <th className='py-3 px-4 text-gray-800 text-[15px]'>Priority</th>
-                        <th className='py-3 px-4 text-gray-800 text-[15px] hidden md:table-cell'>Created On</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {tableData.map((task) => (
-                        <tr key={task._id} className='border-t border-gray-200'>
-                            <td className='my-3 mx-4 text-gray-700 text-[13px] line-clamp-1 overflow-hidden'>{task.title}</td>
-                            <td className='py-4 px-4'>
-                                <span className={`px-2 py-1 text-xs rounded inline-block ${getStatusBadgeColor(task.status)}`}>
-                                    {task.status}
-                                </span>
-                            </td>
-                            <td className='py-4 px-4'>
-                                <span className={`px-2 py-1 text-xs rounded inline-block ${getPriorityBadgeColor(task.priority)}`}>
-                                    {task.priority}
-                                </span>
-                            </td>
-                            <td className='py-4 px-4 text-gray-700 text-[13px] text-nowrap hidden md:table-cell'>
-                                {task.createdAt ? moment(task.createdAt).format('Do MMM YYYY') : 'NA'}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-};
-
-export default TaskListTable;
+export default CreateTask;

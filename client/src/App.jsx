@@ -11,6 +11,7 @@ import UserDashboard from './pages/User/UserDashboard';
 import MyTasks from './pages/User/MyTasks';
 import ViewTaskDetails from './pages/User/ViewTaskDetails';
 import UserProvider, { UserContext } from './context/userContext';
+import { Toaster } from 'react-hot-toast';
 
 const App = () => {
   return (
@@ -27,13 +28,13 @@ const App = () => {
               <Route path="/admin/dashboard" element={<DashBoard />} />
               <Route path="/admin/tasks" element={<ManageTasks />} />
               <Route path="/admin/create-task" element={<CreateTask />} />
-              <Route path="/admin/user" element={<ManageUsers />} />
+              <Route path="/admin/users" element={<ManageUsers />} />
             </Route>
 
             {/* User Routes (Protected) */}
             <Route element={<PrivateRoute allowedRoutes={['user']} />}>
               <Route path="/user/dashboard" element={<UserDashboard />} />
-              <Route path="/user/mytasks" element={<MyTasks />} />
+              <Route path="/user/tasks" element={<MyTasks />} />
               <Route path="/user/task-details/:id" element={<ViewTaskDetails />} />
             </Route>
             {/* default path */}
@@ -41,6 +42,15 @@ const App = () => {
           </Routes>
         </Router>
       </div>
+      <Toaster
+        toastOptions={{
+          className:"",
+          style:{
+            fontSize:"13px",
+            
+          }
+        } }
+      />
     </UserProvider>
 
   );
