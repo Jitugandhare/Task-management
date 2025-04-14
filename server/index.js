@@ -32,7 +32,10 @@ app.use('/api/reports', reportsRoutes)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 
-
+app.use(express.static(path.join(__dirname, "/client/dist")));
+app.get("*", (req,res)=>{
+    res.sendFile(path.resolve(__dirname, "client", "dist", "index.html"));
+})
 
 const PORT = process.env.PORT || 3000;
 

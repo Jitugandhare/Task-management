@@ -19,6 +19,7 @@
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.4.1",
     "recharts": "^2.15.1",
+    "server": "file:..",
     "tailwindcss": "^4.0.17"
   },
   "devDependencies": {
