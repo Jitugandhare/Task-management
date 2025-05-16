@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../utils/axiosInstance';
@@ -13,36 +13,36 @@ const MyTasks = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const navigate = useNavigate();
 
-  const getAllTasks = useCallback(async () => {
-    try {
-      const { data } = await axiosInstance.get(API_PATHS.TASKS.GET_ALL_TASKS, {
-        params: {
-          status: filterStatus === 'All' ? '' : filterStatus,
-        },
-      });
-
-      const tasks = data?.tasks || [];
-      const statusSummary = data?.statusSummary || {};
-
-      setAllTasks(tasks);
-
-      const statusArray = [
-        { label: 'All', count: statusSummary.all || 0 },
-        { label: 'Pending', count: statusSummary.pendingTasks || 0 },
-        { label: 'In Progress', count: statusSummary.inProgressTasks || 0 },
-        { label: 'Completed', count: statusSummary.completedTasks || 0 },
-      ];
-
-      setTabs(statusArray);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      toast.error('Failed to fetch tasks.');
-    }
-  }, [filterStatus]);
-
   useEffect(() => {
+    const getAllTasks = async () => {
+      try {
+        const { data } = await axiosInstance.get(API_PATHS.TASKS.GET_ALL_TASKS, {
+          params: {
+            status: filterStatus === 'All' ? '' : filterStatus,
+          },
+        });
+
+        const tasks = data?.tasks || [];
+        const statusSummary = data?.statusSummary || {};
+
+        setAllTasks(tasks);
+
+        const statusArray = [
+          { label: 'All', count: statusSummary.all || 0 },
+          { label: 'Pending', count: statusSummary.pendingTasks || 0 },
+          { label: 'In Progress', count: statusSummary.inProgressTasks || 0 },
+          { label: 'Completed', count: statusSummary.completedTasks || 0 },
+        ];
+
+        setTabs(statusArray);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        toast.error('Failed to fetch tasks.');
+      }
+    };
+
     getAllTasks();
-  }, [getAllTasks]);
+  }, [filterStatus]);
 
   const handleClick = (taskId) => {
     if (taskId) navigate(`/user/task-details/${taskId}`);
@@ -75,7 +75,7 @@ const MyTasks = () => {
                 progress={task.progress}
                 createdAt={task.createdAt}
                 dueDate={task.dueDate}
-                assignedTo={task.assignedTo?.map((a) => a?.profileImageUrl) || []}
+                assignedTo={(task.assignedTo || []).map((a) => a.profileImageUrl)}
                 attachmentCount={task.attachments?.length || 0}
                 completedTodoCount={task.completedTodoCount || 0}
                 todoChecklist={task.todoChecklist || []}
