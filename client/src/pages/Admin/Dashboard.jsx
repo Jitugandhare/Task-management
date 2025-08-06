@@ -6,7 +6,22 @@ import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../utils/axiosInstance';
 import { API_PATHS } from '../../utils/apiPaths';
 import moment from 'moment';
-import HashLoader from 'react-spinners/HashLoader'; 
+import HashLoader from 'react-spinners/HashLoader';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658'];
 
 const Dashboard = () => {
   useUserAuth();
@@ -21,9 +36,23 @@ const Dashboard = () => {
     try {
       const response = await axiosInstance.get(API_PATHS.TASKS.GET_DASHBOARD_DATA);
       if (response.data) {
-        setDashboardData(response.data);
-        setPieChartData(response.data.pieChartData || []);
-        setBarChartData(response.data.barChartData || []);
+        const { data } = response.data;
+        setDashboardData(data);
+
+        // Example pie chart structure
+        const pieData = [
+          { name: 'Pending', value: data.pendingTasksCount || 0 },
+          { name: 'In Progress', value: data.inProgressTasksCount || 0 },
+          { name: 'Completed', value: data.completedTasksCount || 0 },
+        ];
+        setPieChartData(pieData);
+
+        // You may modify this structure to suit your actual backend data
+        const barData = [
+          { name: 'Users with Tasks', value: data.usersWithTasksCount || 0 },
+          { name: 'Total Users', value: data.allUsersCount || 0 },
+        ];
+        setBarChartData(barData);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -60,16 +89,59 @@ const Dashboard = () => {
       </div>
 
       {dashboardData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="card p-4">
-            <h3 className="text-lg font-semibold mb-2">Total Tasks</h3>
-            <p>{dashboardData.totalTasks || 0}</p>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <div className="card p-4">
+              <h3 className="text-lg font-semibold mb-2">Total Tasks</h3>
+              <p>{dashboardData.allTasksCount || 0}</p>
+            </div>
+            <div className="card p-4">
+              <h3 className="text-lg font-semibold mb-2">Completed Tasks</h3>
+              <p>{dashboardData.completedTasksCount || 0}</p>
+            </div>
           </div>
-          <div className="card p-4">
-            <h3 className="text-lg font-semibold mb-2">Completed Tasks</h3>
-            <p>{dashboardData.completedTasks || 0}</p>
+
+          {/* Pie Chart */}
+          <div className="card p-4 mb-5">
+            <h3 className="text-lg font-semibold mb-4">Task Status Overview</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieChartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) =>
+                    `${name}: ${(percent * 100).toFixed(0)}%`
+                  }
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {pieChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-        </div>
+
+          {/* Bar Chart */}
+          <div className="card p-4 mb-5">
+            <h3 className="text-lg font-semibold mb-4">Users Overview</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={barChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#82ca9d" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
       )}
     </DashboardLayout>
   );

@@ -10,7 +10,8 @@ const SideMenu = ({ activeMenu }) => {
   const navigate = useNavigate();
 
   const handleClick = (route) => {
-    if (route === 'logout') {
+    // FIXED: Check for both '/logout' and 'logout'
+    if (route === '/logout' || route === 'logout') {
       handleLogout();
       return;
     }
@@ -36,11 +37,11 @@ const SideMenu = ({ activeMenu }) => {
           <img
             src={user?.profileImageUrl || ''}
             alt="Profile Image"
-            className="w-25 h-25 bg-slate-400 rounded-full mb-1"
+            className="w-24 h-24 bg-slate-400 rounded-full mb-1"
           />
         </div>
         {user?.role === 'admin' && (
-          <div className="text-[10px] font-medium text-white bg-blue-500 px-5 py-1 rounded-mt-1">
+          <div className="text-[10px] font-medium text-white bg-blue-500 px-5 py-1 rounded mt-1">
             Admin
           </div>
         )}
@@ -50,9 +51,10 @@ const SideMenu = ({ activeMenu }) => {
       {sideMenuData.map((item, index) => (
         <button
           key={`menu_${index}`}
+          aria-current={activeMenu === item.label ? 'page' : undefined}
           className={`w-full flex items-center gap-4 text-[15px] ${
             activeMenu === item.label
-              ? 'text-blue-500 bg-linear-to-r from-blue-50/40 to-blue-100/50 border-r-3'
+              ? 'text-blue-500 bg-gradient-to-r from-blue-50/40 to-blue-100/50 border-r-3'
               : ''
           } py-3 px-6 mb-3 cursor-pointer`}
           onClick={() => handleClick(item.path)}

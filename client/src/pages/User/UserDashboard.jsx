@@ -24,37 +24,38 @@ const UserDashboard = () => {
   const [pieChartData, setPieChartData] = useState([]);
   const [barChartData, setBarChartData] = useState([]);
 
-  // Prepare Chart Data
-  const prepareChartData = (data) => {
-    const taskDistribution = data?.taskDistribution ?? {};
-    const taskPriorityLevels = data?.taskPriorityLevels ?? {};
+  // Prepare chart data from API response
+  const prepareChartData = (charts = {}) => {
+    const taskDistribution = charts.taskDistribution || {};
+    const taskPriorityLevels = charts.taskPriorityLevels || {};
 
     setPieChartData([
-      { status: 'Pending', count: taskDistribution.Pending ?? 0 },
-      { status: 'In Progress', count: taskDistribution.InProgress ?? 0 },
-      { status: 'Completed', count: taskDistribution.Completed ?? 0 },
+      { status: 'Pending', count: taskDistribution.Pending || 0 },
+      { status: 'In Progress', count: taskDistribution.InProgress || 0 },
+      { status: 'Completed', count: taskDistribution.Completed || 0 },
     ]);
 
     setBarChartData([
-      { priority: 'Low', count: taskPriorityLevels.Low ?? 0 },
-      { priority: 'Medium', count: taskPriorityLevels.Medium ?? 0 },
-      { priority: 'High', count: taskPriorityLevels.High ?? 0 },
+      { priority: 'Low', count: taskPriorityLevels.Low || 0 },
+      { priority: 'Medium', count: taskPriorityLevels.Medium || 0 },
+      { priority: 'High', count: taskPriorityLevels.High || 0 },
     ]);
   };
 
-  const getDashboardData = async () => {
-    try {
-      const response = await axiosInstance.get(API_PATHS.TASKS.GET_USER_DASHBOARD_DATA);
-      const data = response.data;
-
-      if (data) {
-        setDashboardData(data);
-        prepareChartData(data?.charts ?? {});
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+ const getDashboardData = async () => {
+  try {
+    const response = await axiosInstance.get(API_PATHS.TASKS.GET_USER_DASHBOARD_DATA);
+    console.log('API Response:', response);  // <-- Add this
+    const data = response.data.data; // usually axios response has { data: { ... } }
+    if (data) {
+      setDashboardData(data);
+      prepareChartData(data.charts ?? {});
     }
-  };
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+  }
+};
+
 
   useEffect(() => {
     getDashboardData();
@@ -64,7 +65,7 @@ const UserDashboard = () => {
     navigate('/user/tasks');
   };
 
-  const taskDistribution = dashboardData?.charts?.taskDistribution ?? {};
+  const taskDistribution = dashboardData?.charts?.taskDistribution || {};
 
   return (
     <DashboardLayout activeMenu="Dashboard">
@@ -81,22 +82,22 @@ const UserDashboard = () => {
         <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 md:gap-6 mt-5">
           <InfoCard
             label="Total Tasks"
-            value={addThousandsSeparator(taskDistribution.All ?? 0)}
+            value={addThousandsSeparator(taskDistribution.All || 0)}
             color="bg-blue-800"
           />
           <InfoCard
             label="Pending Tasks"
-            value={addThousandsSeparator(taskDistribution.Pending ?? 0)}
+            value={addThousandsSeparator(taskDistribution.Pending || 0)}
             color="bg-violet-500"
           />
           <InfoCard
             label="In Progress Tasks"
-            value={addThousandsSeparator(taskDistribution.InProgress ?? 0)}
+            value={addThousandsSeparator(taskDistribution.InProgress || 0)}
             color="bg-cyan-800"
           />
           <InfoCard
             label="Completed Tasks"
-            value={addThousandsSeparator(taskDistribution.Completed ?? 0)}
+            value={addThousandsSeparator(taskDistribution.Completed || 0)}
             color="bg-lime-800"
           />
         </div>
@@ -128,7 +129,7 @@ const UserDashboard = () => {
             </button>
           </div>
 
-          <TaskListTable tableData={dashboardData?.recentTasks ?? []} />
+          <TaskListTable tableData={dashboardData?.recentTasks || []} />
         </div>
       </div>
     </DashboardLayout>

@@ -6,7 +6,8 @@ const UserCard = ({ userInfo }) => {
         <div className='user-card p-2'>
             <div className='flex items-center justify-between'>
                 <div className='flex items-center gap-3 '>
-                    <img src={userInfo?.profileImageUrl} alt={`Avatar`}
+                    <img src={userInfo?.profileImageUrl} alt={`${userInfo?.name}'s avatar`}
+
                         className='w-12 h-12 rounded-full border-2 border-white'
                     />
                     <div>
@@ -58,7 +59,7 @@ const StatCard = ({ label, count, status }) => {
     };
 
     return (
-        <div className={`flex-1 text-[10px] font-medium ${getStatusTagColor()} px-4 py-2 rounded`}>
+        <div className={`flex-1 text-[10px] font-medium ${getStatusTagColor()} px-4 py-2 rounded border`}>
             <span className='text-[12px] font-semibold'>{count}</span>
             <div className="text-[10px]">{label}</div>
         </div>

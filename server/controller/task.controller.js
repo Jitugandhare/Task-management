@@ -20,7 +20,7 @@ const User = require('../model/user.model.js');
 
 //         // Get the number of users (you can use specific filters if necessary, like active users)
 //         const allUsersCount = await User.countDocuments();
-        
+
 //         // You could also add additional statistics, such as users with assigned tasks, or average number of tasks per user
 //         const usersWithTasksCount = await User.countDocuments({ tasks: { $gte: 1 } });
 
@@ -155,61 +155,77 @@ const getDashboardData = async (req, res) => {
 
 const getUserDashboardData = async (req, res) => {
     try {
-        // Get tasks assigned to the logged-in user
+        // Get all tasks assigned to logged-in user
         const assignedTasks = await Task.find({ assignedTo: req.user._id })
             .populate("assignedTo", "name email profileImageUrl");
 
-        // ✅ FIXED: Check for empty array instead of falsy check
         if (assignedTasks.length === 0) {
             return res.status(404).json({ message: "No tasks found for this user" });
         }
 
-        // ✅ FIXED: Aggregate all task status counts in a single DB query
+        // Aggregate task statuses
         const statusCounts = await Task.aggregate([
             { $match: { assignedTo: req.user._id } },
-            { $group: { _id: "$status", count: { $sum: 1 } } }
+            { $group: { _id: "$status", count: { $sum: 1 } } },
         ]);
 
-        // ✅ FIXED: Map aggregation results to structured summary
         const statusSummary = {
-            pendingTasks: 0,
-            inProgressTasks: 0,
-            completedTasks: 0
+            Pending: 0,
+            InProgress: 0,
+            Completed: 0,
         };
 
         statusCounts.forEach(({ _id, count }) => {
-            if (_id === "Pending") statusSummary.pendingTasks = count;
-            else if (_id === "In Progress") statusSummary.inProgressTasks = count;
-            else if (_id === "Completed") statusSummary.completedTasks = count;
+            if (_id === "Pending") statusSummary.Pending = count;
+            else if (_id === "In Progress") statusSummary.InProgress = count;
+            else if (_id === "Completed") statusSummary.Completed = count;
         });
 
-        // ✅ FIXED: Use .toObject() instead of accessing _doc directly
-        const tasksWithCompletion = await Promise.all(
-            assignedTasks.map(async (task) => {
-                const completedCount = task.todoChecklist.filter(
-                    (item) => item.completed
-                ).length;
-                return { ...task.toObject(), completedTodoCount: completedCount };
-            })
-        );
+        // Aggregate task priorities
+        const priorityCounts = await Task.aggregate([
+            { $match: { assignedTo: req.user._id } },
+            { $group: { _id: "$priority", count: { $sum: 1 } } },
+        ]);
 
-        // Prepare the user dashboard data
-        const userDashboardData = {
-            tasks: tasksWithCompletion,
-            statusSummary
+        const prioritySummary = {
+            Low: 0,
+            Medium: 0,
+            High: 0,
         };
 
-        // Respond with the user-specific dashboard data
-        res.json({
+        priorityCounts.forEach(({ _id, count }) => {
+            if (_id === "Low") prioritySummary.Low = count;
+            else if (_id === "Medium") prioritySummary.Medium = count;
+            else if (_id === "High") prioritySummary.High = count;
+        });
+
+        // Add completed checklist count to tasks
+        const tasksWithCompletion = assignedTasks.map(task => {
+            const completedTodoCount = task.todoChecklist.filter(item => item.completed).length;
+            return { ...task.toObject(), completedTodoCount };
+        });
+
+        const userDashboardData = {
+            charts: {
+                taskDistribution: {
+                    All: assignedTasks.length,
+                    ...statusSummary,
+                },
+                taskPriorityLevels: prioritySummary,
+            },
+            recentTasks: tasksWithCompletion.slice(0, 10), // limit recent tasks to 10
+        };
+
+        return res.json({
             message: "User dashboard data retrieved successfully",
-            data: userDashboardData
+            data: userDashboardData,
         });
     } catch (error) {
-        // ✅ ADDED: Log error to server console for easier debugging
         console.error("Error in getUserDashboardData:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        return res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
 
 
 // Get all tasks(Admin:all, user:only assigned)
@@ -267,7 +283,7 @@ const getTasks = async (req, res) => {
                 all: allTasks,
                 pendingTasks,
                 inProgressTasks,
-                completedTasks, 
+                completedTasks,
             },
         });
     } catch (error) {
@@ -398,7 +414,7 @@ const updateTaskCheckList = async (req, res) => {
 
         // Respond with updated task and success message
         res.json({
-            message: "Task checklist updated", 
+            message: "Task checklist updated",
             task: updatedTask
         });
 

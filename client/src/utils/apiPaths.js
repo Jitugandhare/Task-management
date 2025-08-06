@@ -1,4 +1,4 @@
-export const BASE_URL = `https://task-management-9zav.onrender.com`;
+export const BASE_URL = `http://localhost:8000`;
 
 
 export const API_PATHS = {
@@ -30,6 +30,6 @@ export const API_PATHS = {
         EXPORT_USERS: '/api/reports/export/users'
     },
     IMAGE: {
-        UPLOAD_IMAGE: 'api/auth/upload-image'
+        UPLOAD_IMAGE: '/api/auth/upload-image'
     }
 };
