@@ -236,8 +236,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Jitu Gandhare**
 
 - GitHub: [@Jitugandhare](https://github.com/Jitugandhare)
-- LinkedIn: [Connect with me](https://www.linkedin.com/in/jitugandhare)
-- Email: jitugandhare@example.com
+- Email: jitugandhare@gmail.com
 
 ---
 
