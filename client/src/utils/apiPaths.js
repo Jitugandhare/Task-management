@@ -1,4 +1,4 @@
-export const BASE_URL = `http://localhost:8000/`;
+export const BASE_URL = ``;
 // export const BASE_URL = `https://task-management-9zav.onrender.com`;
 
 
