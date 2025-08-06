@@ -15,11 +15,13 @@ const reportsRoutes = require('./routes/reports.route.js');
 const app = express();
 
 // Middleware
-app.use(cors({
-    origin: process.env.CLIENT_URL || "*", // Use CLIENT_URL from .env, fallback to "*" (open CORS)
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ["Content-Type", "Authorization"]
-}));
+// app.use(cors({
+//     origin: process.env.CLIENT_URL || "*", 
+//     methods: ['GET', 'POST', 'PUT', 'DELETE'],
+//     allowedHeaders: ["Content-Type", "Authorization"]
+// }));
+
+app.use(cors());
 
 app.use(express.json());
 
